@@ -51,7 +51,13 @@ RUN apt update \
 RUN mkdir /var/run/sshd \
   && echo 'root:admin' | chpasswd \
   && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
-  && echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
+  && echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config \
+  && rm \
+    /etc/ssh/ssh_host_ed25519_key \
+    /etc/ssh/ssh_host_ed25519_key.pub \
+    /etc/ssh/ssh_host_rsa_key \
+    /etc/ssh/ssh_host_rsa_key.pub
+
 
 EXPOSE 22
 
