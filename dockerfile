@@ -37,23 +37,13 @@ RUN apt-get install -y --no-install-recommends \
     sudo
 
 
-RUN systemctl mask \
-    dev-hugepages.mount \
-    sys-fs-fuse-connections.mount \
-    sys-kernel-config.mount \
-    display-manager.service \
-    getty@.service \
-    systemd-logind.service \
-    systemd-remount-fs.service \
-    getty.target \
-    # Configure SSH server
-  && mkdir /var/run/sshd \
+# Configure SSH server
+RUN mkdir /var/run/sshd \
   && echo 'root:admin' | chpasswd \
   && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
   && echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
 
 EXPOSE 22
 
-VOLUME [ "/sys/fs/cgroup" ]
 
 CMD ["/lib/systemd/systemd"]
