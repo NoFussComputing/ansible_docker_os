@@ -1,21 +1,31 @@
-ARG DEBIAN_TAG=11.7
+ARG BASE_IMAGE_TAG=11
+ARG BASE_IMAGE=debian
 
 
-FROM debian:$DEBIAN_TAG
+FROM $BASE_IMAGE:$BASE_IMAGE_TAG
 
+
+ENV BASE_IMAGE=$BASE_IMAGE
+ENV BASE_IMAGE_TAG=$BASE_IMAGE_TAG
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+
+# This block for debian, to fix missing ldconfig during apt operations.
+# Discovered problem with debian:11
+RUN if [ "0$BASE_IMAGE" == '0debian' ]; then \
+  apt update; \
+  apt-get download libc-bin; \
+  dpkg --extract ./libc-bin_*.deb ./deb; \
+  rm libc-bin_*.deb; \
+  cp ./deb/sbin/ldconfig /sbin/; \
+  rm -Rf ./deb; \
+  apt-get install --reinstall libc-bin; \
+  fi;
+
+
 RUN apt update \
-  && apt-get download libc-bin \
-  && dpkg --extract ./libc-bin_*.deb ./deb \
-  && rm libc-bin_*.deb \
-  && cp ./deb/sbin/ldconfig /sbin/ \
-  && rm -Rf ./deb \
-  && apt-get install --reinstall libc-bin
-
-
-RUN apt-get install -y --no-install-recommends \
+  && apt-get install -y --no-install-recommends \
     systemd \
     openssh-server \
     avahi-daemon \
