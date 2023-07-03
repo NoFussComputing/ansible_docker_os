@@ -41,6 +41,36 @@ links:
 
 
 
+## Description 
+
+These docker containers are intended to simulate a full operating system install for the sole purpose of automated testing. The aim is that these containers only contain the default set of software for the specified operating system, in this case Debian and Ubuntu. No Desktop environment is included. A SSH server has been added to the containers on `TCP/22` with the credentials of `root:admin` being availble. Theses containers **should not** be deployed to a production environment as part of an installation-This is not their purpose, they should only be used for testing what ever you are developing
+
+Use cases include and not limited to:
+
+- Ansible role/collection/playbook testing/deployment *(this is the reason we built these containers)*
+
+- Script testing
+
+- CI/CD as the base image
+
+
+These containers are deployed to [Docker Hub](https://hub.docker.com/r/nofusscomputing/ansible-docker-os)
+
+### Container Tags
+
+These images are tagged using the following format: `{release}-{operating system}-{operating system major release version}`
+
+- `{release}` *What release it is, will either be latest, dev, or semver*
+
+- `{operating system}` *The Operating System used*
+
+- `{operating system major release version}` *The major version of the Operating system release*
+
+i.e. A Debian 11 image from the unstable (development) branch, would have a container tag of `dev-debian-11`
+
+Pull the container with `docker pull nofusscomputing/ansible-docker-os:{container tag}`
+
+
 ## Contributing
 All contributions for this project must conducted from [Gitlab](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os).
 

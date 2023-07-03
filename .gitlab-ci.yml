@@ -80,7 +80,7 @@ include:
         --push \
         --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN --build-arg CI_PROJECT_ID=$CI_PROJECT_ID --build-arg CI_API_V4_URL=$CI_API_V4_URL \
         --file $DOCKER_DOCKERFILE \
-        --build-arg $BUILD_ARG \
+        $EXTRA_BUILD_SWITCHES \
         --tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
 
         docker buildx imagetools inspect $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
@@ -106,7 +106,7 @@ include:
           --label org.opencontainers.image.revision="$CI_COMMIT_SHA" \
         --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN --build-arg CI_PROJECT_ID=$CI_PROJECT_ID --build-arg CI_API_V4_URL=$CI_API_V4_URL \
         --file $DOCKER_DOCKERFILE \
-        --build-arg $BUILD_ARG \
+        $EXTRA_BUILD_SWITCHES \
         --tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
       
       docker push $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
@@ -282,17 +282,27 @@ Docker Container:
   variables:
     DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
     DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
-    DOCKER_IMAGE_BUILD_TAG: debian-$DEBIAN_OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    EXTRA_BUILD_SWITCHES: '--build-arg BASE_IMAGE=$OS --build-arg BASE_IMAGE_TAG=$OS_VERSION'
   parallel:
     matrix:
-      - DEBIAN_OS_VERSION: '10'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
+      - OS: debian
+        OS_VERSION: '10'
         Allow_Failure: 'true'
-      - DEBIAN_OS_VERSION: '11'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
+      - OS: debian
+        OS_VERSION: '11'
         Allow_Failure: 'false'
-      - DEBIAN_OS_VERSION: '12'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
+      - OS: debian
+        OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+        Allow_Failure: 'true'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
         Allow_Failure: 'false'
 
 
@@ -305,18 +315,22 @@ Docker.Hub.Branch.Publish:
   variables:
     DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
     DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
-    DOCKER_IMAGE_BUILD_TAG: debian-$DEBIAN_OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_TAG_PREFIX: -$OS-$OS_VERSION
   parallel:
     matrix:
-      - DEBIAN_OS_VERSION: '10'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
-      - DEBIAN_OS_VERSION: '11'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
-      - DEBIAN_OS_VERSION: '12'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
+      - OS: debian
+        OS_VERSION: '10'
+      - OS: debian
+        OS_VERSION: '11'
+      - OS: debian
+        OS_VERSION: '12'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
 
   rules: # rules manually synced from docker/publish.gitlab-ci.yaml removing git tag
 
@@ -348,18 +362,22 @@ Docker.Hub.Tag.Publish:
   variables:
     DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
     DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
-    DOCKER_IMAGE_BUILD_TAG: debian-$DEBIAN_OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_TAG_PREFIX: -$OS-$OS_VERSION
   parallel:
     matrix:
-      - DEBIAN_OS_VERSION: '10'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
-      - DEBIAN_OS_VERSION: '11'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
-      - DEBIAN_OS_VERSION: '12'
-        BUILD_ARG: 'DEBIAN_TAG=$DEBIAN_OS_VERSION'
-        DOCKER_TAG_PREFIX: -debian-$DEBIAN_OS_VERSION
+      - OS: debian
+        OS_VERSION: '10'
+      - OS: debian
+        OS_VERSION: '11'
+      - OS: debian
+        OS_VERSION: '12'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
 
   rules: # rules manually synced from docker/publish.gitlab-ci.yaml only keeping git tag
 
