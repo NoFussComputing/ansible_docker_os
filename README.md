@@ -14,7 +14,12 @@
 
 <br>
 
-This project is hosted on [gitlab](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os).
+![GitHub forks](https://img.shields.io/github/forks/NoFussComputing%2fansible_docker_os?logo=github&style=plastic&color=000000&labell=Forks) ![GitHub stars](https://img.shields.io/github/stars/NoFussComputing%2fansible_docker_os?color=000000&logo=github&style=plastic) ![Github Watchers](https://img.shields.io/github/watchers/NoFussComputing%2fansible_docker_os?color=000000&label=Watchers&logo=github&style=plastic)
+
+<br>
+
+This project is hosted on [Gitlab](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os) and has a read-only copy hosted on [Github](https://github.com/NoFussComputing/ansible_docker_os).
+
 
 ----
 
