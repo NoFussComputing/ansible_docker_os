@@ -14,7 +14,12 @@
 
 <br>
 
-This project is hosted on [gitlab](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os).
+![GitHub forks](https://img.shields.io/github/forks/NoFussComputing%2fansible_docker_os?logo=github&style=plastic&color=000000&labell=Forks) ![GitHub stars](https://img.shields.io/github/stars/NoFussComputing%2fansible_docker_os?color=000000&logo=github&style=plastic) ![Github Watchers](https://img.shields.io/github/watchers/NoFussComputing%2fansible_docker_os?color=000000&label=Watchers&logo=github&style=plastic)
+
+<br>
+
+This project is hosted on [Gitlab](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os) and has a read-only copy hosted on [Github](https://github.com/NoFussComputing/ansible_docker_os).
+
 
 ----
 
@@ -39,6 +44,36 @@ links:
 
 - [Merge Requests (Pull Requests)](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/merge_requests)
 
+
+
+## Description 
+
+These docker containers are intended to simulate a full operating system install for the sole purpose of automated testing. The aim is that these containers only contain the default set of software for the specified operating system, in this case Debian and Ubuntu. No Desktop environment is included. A SSH server has been added to the containers on `TCP/22` with the credentials of `root:admin` being availble. Theses containers **should not** be deployed to a production environment as part of an installation-This is not their purpose, they should only be used for testing what ever you are developing
+
+Use cases include and not limited to:
+
+- Ansible role/collection/playbook testing/deployment *(this is the reason we built these containers)*
+
+- Script testing
+
+- CI/CD as the base image
+
+
+These containers are deployed to [Docker Hub](https://hub.docker.com/r/nofusscomputing/ansible-docker-os)
+
+### Container Tags
+
+These images are tagged using the following format: `{release}-{operating system}-{operating system major release version}`
+
+- `{release}` *What release it is, will either be latest, dev, or semver*
+
+- `{operating system}` *The Operating System used*
+
+- `{operating system major release version}` *The major version of the Operating system release*
+
+i.e. A Debian 11 image from the unstable (development) branch, would have a container tag of `dev-debian-11`
+
+Pull the container with `docker pull nofusscomputing/ansible-docker-os:{container tag}`
 
 
 ## Contributing

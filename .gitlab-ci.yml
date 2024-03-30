@@ -1,0 +1,421 @@
+---
+
+variables:
+  MY_PROJECT_ID: "47330754"
+  GIT_SYNC_URL: "https://$GITHUB_USERNAME_ROBOT:$GITHUB_TOKEN_ROBOT@github.com/NoFussComputing/ansible_docker_os.git"
+  
+  DOCKER_IMAGE_BUILD_TARGET_PLATFORMS: "linux/amd64"
+  DOCKER_IMAGE_PUBLISH_NAME: ansible-docker-os
+  DOCKER_IMAGE_PUBLISH_REGISTRY: docker.io/nofusscomputing
+  DOCKER_IMAGE_PUBLISH_URL: https://hub.docker.com/r/nofusscomputing/$DOCKER_IMAGE_PUBLISH_NAME
+  # PAGES_ENVIRONMENT_PATH: projects/ansible_docker_os/
+
+include:
+  - project: nofusscomputing/projects/gitlab-ci
+    ref: development
+    file:
+      # - .gitlab-ci_common.yaml
+      - template/automagic.gitlab-ci.yaml
+
+
+.MKDocs_Build:
+  image: python:3.11-buster
+
+
+#
+# this is for testing matrix builds
+# Changes:
+#       - added --build-arg to build
+#
+#
+.build_docker_container:
+  stage: build
+  image: 
+    name: nofusscomputing/docker-buildx-qemu:dev
+    pull_policy: always
+  services:
+    - name: docker:23-dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_DOCKERFILE: dockerfile
+    # See https://github.com/docker-library/docker/pull/166
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - git submodule foreach git submodule update --init
+    - if [ "0$JOB_ROOT_DIR" == "0" ]; then ROOT_DIR=gitlab-ci; else ROOT_DIR=$JOB_ROOT_DIR ; fi
+    - echo "[DEBUG] ROOT_DIR[$ROOT_DIR]"
+    - docker info
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    #- pip3 install -r gitlab-ci/gitlab_release/requirements.txt
+    - pip3 install setuptools wheel
+    - pip install -r $ROOT_DIR/conventional_commits/requirements.txt
+    - pip3 install gitlab-ci/gitlab_release/python-module/cz_nfc/.
+      # see: https://gitlab.com/gitlab-org/gitlab-runner/-/merge_requests/1861 
+      # on why this `docker run` is required. without it multiarch support doesnt work.
+    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - update-binfmts --display
+    - update-binfmts --enable # Important: Ensures execution of other binary formats is enabled in the kernel
+    - docker buildx create --driver=docker-container --driver-opt image=moby/buildkit:v0.11.6 --use
+    - docker buildx inspect --bootstrap
+
+
+  #       --label org.opencontainers.image.url="$CI_PROJECT_URL/-/releases/$(cz -n cz_nfc version --project)" \
+  #       --label org.opencontainers.image.version="$(cz -n cz_nfc version --project)" \
+  script: 
+    - update-binfmts --display
+    - |
+
+      if [ "0$DOCKER_IMAGE_BUILD_TARGET_PLATFORMS" != "0" ]; then
+
+        echo "[DEBUG] building multiarch/specified arch image";
+
+        docker buildx build --platform=$DOCKER_IMAGE_BUILD_TARGET_PLATFORMS . \
+          --label org.opencontainers.image.created="$(date '+%Y-%m-%d %H:%M:%S%:z')" \
+          --label org.opencontainers.image.documentation="$CI_PROJECT_URL" \
+          --label org.opencontainers.image.source="$CI_PROJECT_URL" \
+          --label org.opencontainers.image.revision="$CI_COMMIT_SHA" \
+        --push \
+        --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN --build-arg CI_PROJECT_ID=$CI_PROJECT_ID --build-arg CI_API_V4_URL=$CI_API_V4_URL \
+        --file $DOCKER_DOCKERFILE \
+        $EXTRA_BUILD_SWITCHES \
+        --tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+        docker buildx imagetools inspect $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+        # during docker multi platform build there are >=3 additional unknown images added to gitlab container registry. cleanup
+        
+        DOCKER_MULTI_ARCH_IMAGES=$(docker buildx imagetools inspect "$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG" --format "{{ range .Manifest.Manifests }}{{ if ne (print .Platform) \"&{unknown unknown  [] }\" }}$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG@{{ println .Digest }}{{end}} {{end}}");
+
+        docker buildx imagetools create $DOCKER_MULTI_ARCH_IMAGES --tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+        docker buildx imagetools inspect $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+      else
+
+        echo "[DEBUG] building image";
+
+        docker build . \
+          --label org.opencontainers.image.created="$(date '+%Y-%m-%d %H:%M:%S%:z')" \
+          --label org.opencontainers.image.documentation="$CI_PROJECT_URL" \
+          --label org.opencontainers.image.source="$CI_PROJECT_URL" \
+          --label org.opencontainers.image.url="$CI_PROJECT_URL/-/releases/$(cz -n cz_nfc version --project)" \
+          --label org.opencontainers.image.version="$(cz -n cz_nfc version --project)" \
+          --label org.opencontainers.image.revision="$CI_COMMIT_SHA" \
+        --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN --build-arg CI_PROJECT_ID=$CI_PROJECT_ID --build-arg CI_API_V4_URL=$CI_API_V4_URL \
+        --file $DOCKER_DOCKERFILE \
+        $EXTRA_BUILD_SWITCHES \
+        --tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+      
+      docker push $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+      fi
+  rules:
+
+    - if: # condition_master_branch_push
+        $CI_COMMIT_BRANCH == "master" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      when: always
+
+    - if: # condition_dev_branch_push
+        $CI_COMMIT_BRANCH == "development" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      changes:
+        paths:
+          - '{dockerfile,dockerfile.j2,includes/**/*}'
+        compare_to: 'master'
+      when: always
+
+    - if: # condition_not_master_or_dev_push
+        $CI_COMMIT_BRANCH != "master" && 
+        $CI_COMMIT_BRANCH != "development" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      changes:
+        paths:
+          - '{dockerfile,dockerfile.j2,includes/**/*}'
+        compare_to: 'development'
+      when: always
+
+    - when: never
+
+
+
+
+
+#
+# this is for testing matrix builds and publish
+# Changes:
+#       - added a prefix to end of docker hub tag to denote different os
+#
+#
+.publish-docker-hub:
+  stage: publish
+  image: docker:23-dind
+  services:
+    - docker:23-dind
+  before_script:
+    - |
+
+      docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD;
+
+      if [ "0$DOCKER_IMAGE_BUILD_TARGET_PLATFORMS" != "0" ]; then
+
+        for i in ${DOCKER_IMAGE_BUILD_TARGET_PLATFORMS//,/ }
+        do
+
+          docker buildx imagetools inspect $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+          #DOCKER_MULTI_ARCH_IMAGES=$(docker buildx imagetools inspect "$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG" --format "{{ range .Manifest.Manifests }}{{ if ne (print .Platform) \"&{unknown unknown  [] }\" }}$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG@{{ println .Digest }}{{end}} {{end}}")
+          DOCKER_MULTI_ARCH_IMAGES=$(docker buildx imagetools inspect "$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG" --format "{{ range .Manifest.Manifests }}$DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG@{{ println .Digest }} {{end}}")
+
+
+          echo "[DEBUG] DOCKER_MULTI_ARCH_IMAGES=$DOCKER_MULTI_ARCH_IMAGES";
+
+        done;
+
+      else
+
+        docker pull $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG;
+
+      fi
+
+      #docker logout $CI_REGISTRY; # commented out to test if for private repo remaining logged in works to allow pulling image
+
+  script:
+    - docker login docker.io -u $NFC_DOCKERHUB_USERNAME -p $NFC_DOCKERHUB_TOKEN
+    - docker image ls
+    - |
+      DOCKER_HUB_TAG=dev
+
+      if [ "0$CI_COMMIT_TAG" != "0" ]; then
+
+        DOCKER_HUB_TAG=latest
+
+        if [[ "0$CI_COMMIT_TAG" == *"rc"* ]]; then
+
+          DOCKER_HUB_TAG=dev
+
+        fi
+
+      fi
+
+      echo "[DEBUG] DOCKER_IMAGE_PUBLISH_NAME=$DOCKER_IMAGE_PUBLISH_NAME";
+      echo "[DEBUG] DOCKER_HUB_TAG=$DOCKER_HUB_TAG";
+
+      if [ "0$DOCKER_IMAGE_BUILD_TARGET_PLATFORMS" != "0" ]; then
+
+        echo "[DEBUG] DOCKER_MULTI_ARCH_IMAGES=$DOCKER_MULTI_ARCH_IMAGES";
+        
+        docker buildx imagetools create $DOCKER_MULTI_ARCH_IMAGES --tag $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$DOCKER_HUB_TAG$DOCKER_TAG_PREFIX;
+
+        if [ "0$CI_COMMIT_TAG" != "0"  ]; then
+
+          docker buildx imagetools create $DOCKER_MULTI_ARCH_IMAGES --tag $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$CI_COMMIT_TAG$DOCKER_TAG_PREFIX;
+
+        fi
+
+      else
+
+        docker image tag $DOCKER_IMAGE_BUILD_REGISTRY/$DOCKER_IMAGE_BUILD_NAME:$DOCKER_IMAGE_BUILD_TAG $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$DOCKER_HUB_TAG$DOCKER_TAG_PREFIX;
+
+        docker push $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$DOCKER_HUB_TAG;
+
+        if [ "0$CI_COMMIT_TAG" != "0" ]; then
+
+          docker image tag $DOCKER_IMAGE_BUILD_NAME/$DOCKER_IMAGE_BUILD_REGISTRY:$DOCKER_IMAGE_BUILD_TAG $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$CI_COMMIT_TAG$DOCKER_TAG_PREFIX;
+
+          docker push $DOCKER_IMAGE_PUBLISH_REGISTRY/$DOCKER_IMAGE_PUBLISH_NAME:$CI_COMMIT_TAG$DOCKER_TAG_PREFIX;
+
+        fi
+
+      fi
+
+    - docker logout docker.io
+  environment:
+    name: DockerHub
+    url: $DOCKER_IMAGE_PUBLISH_URL
+  rules:
+
+    - if: # condition_git_tag
+        $CI_COMMIT_TAG != null &&
+        $CI_COMMIT_BRANCH == null
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      when: on_success
+
+    - if: # condition_master_branch_push
+        $CI_COMMIT_BRANCH == "master" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      when: on_success
+
+    - if: # condition_dev_branch_push
+        $CI_COMMIT_BRANCH == "development" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      changes:
+        paths:
+          - '{dockerfile,dockerfile.j2,includes/**/*}'
+        compare_to: 'master'
+      allow_failure: $Allow_Failure
+      when: on_success
+
+    - when: never
+
+
+
+
+Docker Container:
+  extends: .build_docker_container
+  # resource_group: build
+  needs: []
+  variables:
+    DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
+    DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    EXTRA_BUILD_SWITCHES: '--build-arg BASE_IMAGE=$OS --build-arg BASE_IMAGE_TAG=$OS_VERSION'
+  parallel:
+    matrix:
+      - OS: debian
+        OS_VERSION: '10'
+        Allow_Failure: 'true'
+      - OS: debian
+        OS_VERSION: '11'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+        Allow_Failure: 'true'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
+        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
+
+
+
+
+Docker.Hub.Branch.Publish:
+  extends: .publish-docker-hub
+  needs: [ "Docker Container" ]
+  resource_group: build
+  variables:
+    DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
+    DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_TAG_PREFIX: -$OS-$OS_VERSION
+  parallel:
+    matrix:
+      - OS: debian
+        OS_VERSION: '10'
+        Allow_Failure: 'true'
+      - OS: debian
+        OS_VERSION: '11'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+        Allow_Failure: 'true'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
+        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
+
+  rules: # rules manually synced from docker/publish.gitlab-ci.yaml removing git tag
+
+    - if: # condition_master_branch_push
+        $CI_COMMIT_BRANCH == "master" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      when: always
+
+    - if: # condition_dev_branch_push
+        $CI_COMMIT_BRANCH == "development" && 
+        $CI_PIPELINE_SOURCE == "push"
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      changes:
+        paths:
+          - '{dockerfile,dockerfile.j2,includes/**/*}'
+        compare_to: 'master'
+      allow_failure: true
+      when: on_success
+
+    - when: never
+
+
+Docker.Hub.Tag.Publish:
+  extends: .publish-docker-hub
+  resource_group: build
+  variables:
+    DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
+    DOCKER_IMAGE_BUILD_REGISTRY: $CI_REGISTRY_IMAGE
+    DOCKER_IMAGE_BUILD_TAG: $OS-$OS_VERSION-$CI_COMMIT_SHORT_SHA
+    DOCKER_TAG_PREFIX: -$OS-$OS_VERSION
+  parallel:
+    matrix:
+      - OS: debian
+        OS_VERSION: '10'
+        Allow_Failure: 'true'
+      - OS: debian
+        OS_VERSION: '11'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '18.04'
+        Allow_Failure: 'true'
+      - OS: ubuntu
+        OS_VERSION: '20.04'
+        Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '22.04'
+        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
+
+  rules: # rules manually synced from docker/publish.gitlab-ci.yaml only keeping git tag
+
+    - if: # condition_git_tag
+        $CI_COMMIT_TAG != null &&
+        $CI_COMMIT_BRANCH == null
+      exists:
+        - '{dockerfile,dockerfile.j2}'
+      when: always
+
+    - when: never
