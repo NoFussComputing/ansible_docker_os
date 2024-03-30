@@ -1,3 +1,12 @@
+## 0.1.0 (2024-03-30)
+
+### Features
+
+- **os**: [50b2b8ae](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/commit/50b2b8aed50704c4b986d6058fde61f7182e2736) - ubuntu 24.04 still broken waiting until propper release [ [!23](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/merge_requests/23) ]
+- **os**: [8bfd15d3](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/commit/8bfd15d35b4e83b1e1d061821f043c336de51476) - add debian trixie [ [!23](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/merge_requests/23) ]
+- **os**: [74ef852d](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/commit/74ef852d8a18e38fbb72e437f72b8c2a17cc1a1b) - add ubuntu LTS 24.04 [ [!23](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/merge_requests/23) ]
+- [81b6b317](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/commit/81b6b317848737babd639023c0a6bc2aecfebd6c) - add tzdata and cleanup apt [ [!23](https://gitlab.com/nofusscomputing/projects/ansible/ansible_docker_os/-/merge_requests/23) ]
+
 ## 0.1.0rc0 (2023-09-02)
 
 ### Bug Fixes
