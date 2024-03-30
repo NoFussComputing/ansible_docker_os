@@ -277,7 +277,7 @@ include:
 
 Docker Container:
   extends: .build_docker_container
-  resource_group: build
+  # resource_group: build
   needs: []
   variables:
     DOCKER_IMAGE_BUILD_NAME: $CI_PROJECT_NAME
@@ -307,9 +307,9 @@ Docker Container:
       - OS: ubuntu
         OS_VERSION: '22.04'
         Allow_Failure: 'false'
-      - OS: ubuntu
-        OS_VERSION: '24.04'
-        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
 
 
 
@@ -327,16 +327,28 @@ Docker.Hub.Branch.Publish:
     matrix:
       - OS: debian
         OS_VERSION: '10'
+        Allow_Failure: 'true'
       - OS: debian
         OS_VERSION: '11'
+        Allow_Failure: 'false'
       - OS: debian
         OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
       - OS: ubuntu
         OS_VERSION: '18.04'
+        Allow_Failure: 'true'
       - OS: ubuntu
         OS_VERSION: '20.04'
+        Allow_Failure: 'false'
       - OS: ubuntu
         OS_VERSION: '22.04'
+        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
 
   rules: # rules manually synced from docker/publish.gitlab-ci.yaml removing git tag
 
@@ -374,16 +386,28 @@ Docker.Hub.Tag.Publish:
     matrix:
       - OS: debian
         OS_VERSION: '10'
+        Allow_Failure: 'true'
       - OS: debian
         OS_VERSION: '11'
+        Allow_Failure: 'false'
       - OS: debian
         OS_VERSION: '12'
+        Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
       - OS: ubuntu
         OS_VERSION: '18.04'
+        Allow_Failure: 'true'
       - OS: ubuntu
         OS_VERSION: '20.04'
+        Allow_Failure: 'false'
       - OS: ubuntu
         OS_VERSION: '22.04'
+        Allow_Failure: 'false'
+      # - OS: ubuntu
+      #   OS_VERSION: '24.04'
+      #   Allow_Failure: 'false'
 
   rules: # rules manually synced from docker/publish.gitlab-ci.yaml only keeping git tag
 
