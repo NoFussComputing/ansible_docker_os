@@ -304,6 +304,9 @@ Docker Container:
       - OS: ubuntu
         OS_VERSION: '22.04'
         Allow_Failure: 'false'
+      - OS: ubuntu
+        OS_VERSION: '24.04'
+        Allow_Failure: 'false'
 
 
 
