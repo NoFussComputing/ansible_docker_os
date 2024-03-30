@@ -44,7 +44,9 @@ RUN apt update \
     network-manager \
     sshpass \
     python3-pip \
-    sudo
+    sudo \
+    tzdata; \
+  rm -rf /var/lib/apt/lists/*;
 
 
 # Configure SSH server
