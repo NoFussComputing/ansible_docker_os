@@ -295,6 +295,9 @@ Docker Container:
       - OS: debian
         OS_VERSION: '12'
         Allow_Failure: 'false'
+      - OS: debian
+        OS_VERSION: trixie
+        Allow_Failure: 'false'
       - OS: ubuntu
         OS_VERSION: '18.04'
         Allow_Failure: 'true'
